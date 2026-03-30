@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- ════════════════════════════════════════════════════════════════════
+         PERMISSIONS
+         ════════════════════════════════════════════════════════════════════ -->
+
+    <!-- Core network -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- VPN service -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
+    <!-- Device admin -->
+    <uses-permission android:name="android.permission.BIND_DEVICE_ADMIN" />
+
+    <!-- Accessibility -->
+    <uses-permission android:name="android.permission.BIND_ACCESSIBILITY_SERVICE" />
+
+    <!-- Boot receiver -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- Battery -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+    <!-- App inspection (for suspension list building) -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
+
+    <!-- ════════════════════════════════════════════════════════════════════
+         APPLICATION
+         ════════════════════════════════════════════════════════════════════ -->
+
+    <application
+        android:name=".LockInApplication"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="false"
+        android:hardwareAccelerated="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.LockIn"
+        tools:targetApi="31">
+
+        <!-- ── Main Activity ───────────────────────────────────────────────── -->
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- ── VPN Service ────────────────────────────────────────────────── -->
+        <!--
+            CRITICAL: android:net.VpnService.supports_always_on = true
+            is REQUIRED for DevicePolicyManager.setAlwaysOnVpnPackage() to work.
+            Without this meta-data, the system will silently ignore the always-on policy.
+        -->
+        <service
+            android:name="com.lockin.vpn.LockInVpnService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse"
+            android:permission="android.permission.BIND_VPN_SERVICE"
+            android:stopWithTask="false">
+            <intent-filter>
+                <action android:name="android.net.VpnService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.net.VpnService.supports_always_on"
+                android:value="true" />
+        </service>
+
+        <!-- ── Device Admin Receiver ──────────────────────────────────────── -->
+        <!--
+            CRITICAL: This receiver must be exported with the BIND_DEVICE_ADMIN permission.
+            The @xml/device_admin resource declares which policies are requested.
+            Set as Device Owner via: adb shell dpm set-device-owner com.lockin.app/.admin.LockInDeviceAdminReceiver
+        -->
+        <receiver
+            android:name="com.lockin.admin.LockInDeviceAdminReceiver"
+            android:description="@string/device_admin_description"
+            android:exported="true"
+            android:label="@string/device_admin_label"
+            android:permission="android.permission.BIND_DEVICE_ADMIN">
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/device_admin" />
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+                <action android:name="android.app.action.DEVICE_ADMIN_DISABLE_REQUESTED" />
+                <action android:name="android.app.action.DEVICE_ADMIN_DISABLED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- ── Accessibility Service ──────────────────────────────────────── -->
+        <!--
+            packageNames="" means the service monitors ALL packages — necessary
+            to intercept any Settings variant (manufacturer-specific packages).
+
+            stopWithTask="false" ensures the service continues even if the main
+            activity is killed.
+        -->
+        <service
+            android:name="com.lockin.accessibility.LockInAccessibilityService"
+            android:description="@string/accessibility_description"
+            android:exported="true"
+            android:label="@string/accessibility_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:stopWithTask="false">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service" />
+        </service>
+
+        <!-- ── Boot Receiver ─────────────────────────────────────────────── -->
+        <receiver
+            android:name="com.lockin.admin.BootReceiver"
+            android:exported="false"
+            android:directBootAware="true">
+            <intent-filter android:priority="999">
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- ── WorkManager custom initializer ───────────────────────────── -->
+        <!--
+            Disable the default WorkManager initializer so we can use Hilt's
+            on-demand initialization via Configuration.Provider.
+        -->
+        <provider
+            android:name="androidx.work.impl.WorkManagerInitializer"
+            android:authorities="${applicationId}.workmanager-init"
+            android:exported="false"
+            tools:node="remove" />
+
+    </application>
+</manifest>

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center_horizontal"
+    android:padding="24dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="LockIn"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="32dp"/>
+
+    <!-- Filter status indicator -->
+    <TextView
+        android:id="@+id/tvFilterStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Filter Active"
+        android:textSize="18sp"
+        android:textColor="@color/filter_active_green"
+        android:layout_marginBottom="24dp"/>
+
+    <!-- Stats card -->
+    <androidx.cardview.widget.CardView
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:cardElevation="4dp"
+        app:cardCornerRadius="8dp"
+        android:layout_marginBottom="24dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Blocked Domains"
+                android:textSize="14sp"
+                android:textColor="#666666"/>
+
+            <TextView
+                android:id="@+id/tvTotalDomains"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0"
+                android:textSize="32sp"
+                android:textStyle="bold"/>
+
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <Button
+        android:id="@+id/btnSyncNow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Sync Blocklists Now"/>
+
+</LinearLayout>

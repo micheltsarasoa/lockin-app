@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Device Admin policy declarations.
+    These policies are displayed to the user when activating Device Admin
+    and requested from the system when provisioned as Device Owner.
+-->
+<device-admin>
+    <uses-policies>
+        <limit-password />
+        <watch-login />
+        <reset-password />
+        <force-lock />
+        <wipe-data />
+        <expire-password />
+        <encrypted-storage />
+        <disable-camera />
+        <disable-keyguard-features />
+    </uses-policies>
+</device-admin>

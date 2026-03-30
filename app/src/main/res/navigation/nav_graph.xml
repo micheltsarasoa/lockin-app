@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/setupFragment">
+
+    <!-- Step 1: Device Owner provisioning guide -->
+    <fragment
+        android:id="@+id/setupFragment"
+        android:name="com.lockin.app.ui.setup.SetupFragment"
+        android:label="@string/setup_step_device_owner"
+        tools:layout="@layout/fragment_setup">
+        <action
+            android:id="@+id/action_setupFragment_to_pinSetupFragment"
+            app:destination="@id/pinSetupFragment" />
+    </fragment>
+
+    <!-- Step 2: Create master PIN -->
+    <fragment
+        android:id="@+id/pinSetupFragment"
+        android:name="com.lockin.app.ui.setup.PinSetupFragment"
+        android:label="@string/setup_step_pin"
+        tools:layout="@layout/fragment_pin_setup">
+        <action
+            android:id="@+id/action_pinSetupFragment_to_permissionsFragment"
+            app:destination="@id/permissionsFragment" />
+    </fragment>
+
+    <!-- Step 3: Grant accessibility + VPN permissions -->
+    <fragment
+        android:id="@+id/permissionsFragment"
+        android:name="com.lockin.app.ui.setup.PermissionsFragment"
+        android:label="@string/setup_step_permissions">
+        <action
+            android:id="@+id/action_permissionsFragment_to_dashboardFragment"
+            app:destination="@id/dashboardFragment" />
+    </fragment>
+
+    <!-- Main screen (after setup) -->
+    <fragment
+        android:id="@+id/dashboardFragment"
+        android:name="com.lockin.app.ui.dashboard.DashboardFragment"
+        android:label="@string/dashboard_title"
+        tools:layout="@layout/fragment_dashboard" />
+
+</navigation>

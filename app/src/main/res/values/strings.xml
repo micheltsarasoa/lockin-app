@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">LockIn</string>
+
+    <!-- Device Admin -->
+    <string name="device_admin_label">LockIn Parental Control</string>
+    <string name="device_admin_description">Provides content filtering and parental control features. Required for enforcing content restrictions on this device.</string>
+
+    <!-- Accessibility -->
+    <string name="accessibility_label">LockIn Content Filter</string>
+    <string name="accessibility_description">Monitors and protects against bypass attempts on the content filtering system. Required to prevent children from disabling filtering settings.</string>
+
+    <!-- Setup -->
+    <string name="setup_title">LockIn Setup</string>
+    <string name="setup_step_device_owner">Step 1: Device Owner Setup</string>
+    <string name="setup_step_pin">Step 2: Create Parent PIN</string>
+    <string name="setup_step_permissions">Step 3: Grant Permissions</string>
+    <string name="setup_step_sync">Step 4: Download Blocklists</string>
+    <string name="setup_complete">Setup Complete!</string>
+
+    <!-- Dashboard -->
+    <string name="dashboard_title">LockIn Dashboard</string>
+    <string name="filter_active">Filter Active</string>
+    <string name="filter_inactive">Filter Inactive</string>
+    <string name="sync_now">Sync Blocklists Now</string>
+    <string name="total_blocked">Total Domains Blocked</string>
+    <string name="last_sync">Last Sync</string>
+
+    <!-- PIN -->
+    <string name="enter_pin">Enter Parent PIN</string>
+    <string name="create_pin">Create PIN</string>
+    <string name="confirm_pin">Confirm PIN</string>
+    <string name="pin_incorrect">Incorrect PIN</string>
+    <string name="pin_locked_out">Too many attempts. Try again later.</string>
+
+    <!-- ADB command shown during setup -->
+    <string name="adb_command">adb shell dpm set-device-owner com.lockin.app/.admin.LockInDeviceAdminReceiver</string>
+</resources>
