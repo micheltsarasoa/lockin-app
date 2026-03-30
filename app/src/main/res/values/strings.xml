@@ -35,4 +35,12 @@
 
     <!-- ADB command shown during setup -->
     <string name="adb_command">adb shell dpm set-device-owner com.lockin.app/.admin.LockInDeviceAdminReceiver</string>
+
+    <!-- Permissions step -->
+    <string name="accessibility_enabled">Enabled</string>
+    <string name="accessibility_not_enabled">Not enabled</string>
+    <string name="vpn_granted">Granted</string>
+    <string name="vpn_not_granted">Not granted</string>
+    <string name="permissions_all_granted">All permissions granted — tap Continue.</string>
+    <string name="permissions_incomplete">Grant both permissions above to continue.</string>
 </resources>
