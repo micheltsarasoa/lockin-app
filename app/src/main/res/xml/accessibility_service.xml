@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Accessibility service configuration.
+
+    eventTypes:
+      typeWindowStateChanged — detects navigation to new screens
+      typeWindowContentChanged — detects content changes within a screen
+
+    packageNames = "" — monitor ALL packages (needed to intercept any Settings variant)
+
+    canRetrieveWindowContent — required to read window content for deeper inspection
+    flagRetrieveInteractiveWindows — allows access to all interactive windows
+-->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagReportViewIds|flagRetrieveInteractiveWindows"
+    android:canRetrieveWindowContent="true"
+    android:description="@string/accessibility_description"
+    android:notificationTimeout="50"
+    android:packageNames=""
+    android:settingsActivity="com.lockin.app.ui.MainActivity" />

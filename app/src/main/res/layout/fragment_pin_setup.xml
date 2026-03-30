@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="32dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Create Parent PIN"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Minimum 6 digits. This PIN protects all filter settings."
+        android:gravity="center"
+        android:layout_marginBottom="24dp"/>
+
+    <EditText
+        android:id="@+id/etPin"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Enter PIN"
+        android:inputType="numberPassword"
+        android:maxLines="1"
+        android:layout_marginBottom="12dp"/>
+
+    <EditText
+        android:id="@+id/etPinConfirm"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Confirm PIN"
+        android:inputType="numberPassword"
+        android:maxLines="1"
+        android:layout_marginBottom="24dp"/>
+
+    <Button
+        android:id="@+id/btnSavePin"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Create PIN"/>
+
+</LinearLayout>
