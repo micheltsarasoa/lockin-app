@@ -1,81 +1,14 @@
 package com.lockin.vpn
 
 import com.lockin.vpn.packet.DnsResponseBuilder
+import com.lockin.vpn.packet.UdpPacketWrapper
 import org.junit.Assert.*
 import org.junit.Test
 
-/**
- * Tests for wrapDnsResponseInUdp() via a white-box helper approach.
- *
- * Since wrapDnsResponseInUdp() is private on LockInVpnService (an Android service),
- * we test the packet structure logic directly here by replicating the same algorithm
- * in a standalone helper and verifying the output byte-by-byte.
- *
- * This also validates that DnsResponseBuilder.buildNxDomain() produces output that
- * can be legally wrapped (correct size, flags, etc.).
- */
 class UdpPacketWrapperTest {
 
     // -----------------------------------------------------------------------
-    // Standalone replica of the wrapping logic (pure Kotlin, no Android deps)
-    // -----------------------------------------------------------------------
-
-    private fun wrapDnsResponseInUdp(originalPacket: ByteArray, dnsResponse: ByteArray): ByteArray? {
-        if (originalPacket.size < 28) return null
-        val ihl = (originalPacket[0].toInt() and 0x0F) * 4
-        if (originalPacket.size < ihl + 8) return null
-
-        val srcIp   = originalPacket.copyOfRange(12, 16)
-        val dstIp   = originalPacket.copyOfRange(16, 20)
-        val srcPort = originalPacket.copyOfRange(ihl, ihl + 2)
-        val dstPort = originalPacket.copyOfRange(ihl + 2, ihl + 4)
-
-        val totalLength = 20 + 8 + dnsResponse.size
-        val packet = ByteArray(totalLength)
-
-        packet[0]  = 0x45.toByte()
-        packet[1]  = 0x00
-        packet[2]  = (totalLength ushr 8).toByte()
-        packet[3]  = (totalLength and 0xFF).toByte()
-        packet[4]  = 0x00; packet[5] = 0x00
-        packet[6]  = 0x40; packet[7] = 0x00
-        packet[8]  = 0x40
-        packet[9]  = 0x11
-        packet[10] = 0x00; packet[11] = 0x00
-        dstIp.copyInto(packet, 12)
-        srcIp.copyInto(packet, 16)
-
-        val checksum = ipv4HeaderChecksum(packet, 0, 20)
-        packet[10] = (checksum ushr 8).toByte()
-        packet[11] = (checksum and 0xFF).toByte()
-
-        val udpStart = 20
-        dstPort.copyInto(packet, udpStart)
-        srcPort.copyInto(packet, udpStart + 2)
-        val udpLength = 8 + dnsResponse.size
-        packet[udpStart + 4] = (udpLength ushr 8).toByte()
-        packet[udpStart + 5] = (udpLength and 0xFF).toByte()
-        packet[udpStart + 6] = 0x00
-        packet[udpStart + 7] = 0x00
-
-        dnsResponse.copyInto(packet, 28)
-        return packet
-    }
-
-    private fun ipv4HeaderChecksum(buf: ByteArray, offset: Int, length: Int): Int {
-        var sum = 0
-        var i = offset
-        while (i < offset + length - 1) {
-            val word = ((buf[i].toInt() and 0xFF) shl 8) or (buf[i + 1].toInt() and 0xFF)
-            sum += word
-            i += 2
-        }
-        while (sum ushr 16 != 0) sum = (sum and 0xFFFF) + (sum ushr 16)
-        return sum.inv() and 0xFFFF
-    }
-
-    // -----------------------------------------------------------------------
-    // Helpers to build a minimal IPv4/UDP/DNS query packet
+    // Helpers
     // -----------------------------------------------------------------------
 
     private fun buildQueryPacket(
@@ -104,13 +37,16 @@ class UdpPacketWrapperTest {
     private fun buildMinimalDnsQuery(domain: String, txId: Short = 0x1234): ByteArray {
         val labels = domain.split(".")
         val qname = mutableListOf<Byte>()
-        for (label in labels) { qname.add(label.length.toByte()); qname.addAll(label.encodeToByteArray().toList()) }
+        for (label in labels) {
+            qname.add(label.length.toByte())
+            qname.addAll(label.encodeToByteArray().toList())
+        }
         qname.add(0)
         val out = mutableListOf<Byte>()
         out.add((txId.toInt() ushr 8).toByte()); out.add(txId.toByte())
         out.add(0x01); out.add(0x00)   // flags: RD=1
         out.add(0x00); out.add(0x01)   // QDCOUNT=1
-        repeat(6) { out.add(0x00) }    // ANCOUNT, NSCOUNT, ARCOUNT = 0
+        repeat(6) { out.add(0x00) }
         out.addAll(qname)
         out.add(0x00); out.add(0x01)   // QTYPE A
         out.add(0x00); out.add(0x01)   // QCLASS IN
@@ -123,72 +59,67 @@ class UdpPacketWrapperTest {
 
     @Test
     fun `wrapped packet has correct total length`() {
-        val dnsPayload = buildMinimalDnsQuery("example.com")
-        val queryPacket = buildQueryPacket(dnsPayload = dnsPayload)
-        val nxdomain = DnsResponseBuilder.buildNxDomain(dnsPayload)!!
-        val wrapped = wrapDnsResponseInUdp(queryPacket, nxdomain)
+        val dns = buildMinimalDnsQuery("example.com")
+        val nxdomain = DnsResponseBuilder.buildNxDomain(dns)!!
+        val wrapped = UdpPacketWrapper.wrap(buildQueryPacket(dnsPayload = dns), nxdomain)
 
         assertNotNull(wrapped)
         assertEquals(20 + 8 + nxdomain.size, wrapped!!.size)
     }
 
     @Test
-    fun `wrapped packet IPv4 version and IHL are correct`() {
-        val dnsPayload = buildMinimalDnsQuery("example.com")
-        val queryPacket = buildQueryPacket(dnsPayload = dnsPayload)
-        val nxdomain = DnsResponseBuilder.buildNxDomain(dnsPayload)!!
-        val wrapped = wrapDnsResponseInUdp(queryPacket, nxdomain)!!
+    fun `IPv4 version and IHL are correct`() {
+        val dns = buildMinimalDnsQuery("example.com")
+        val nxdomain = DnsResponseBuilder.buildNxDomain(dns)!!
+        val wrapped = UdpPacketWrapper.wrap(buildQueryPacket(dnsPayload = dns), nxdomain)!!
 
-        assertEquals(0x45, wrapped[0].toInt() and 0xFF)  // Version=4, IHL=5
+        assertEquals(0x45, wrapped[0].toInt() and 0xFF)
     }
 
     @Test
-    fun `wrapped packet protocol is UDP`() {
-        val dnsPayload = buildMinimalDnsQuery("example.com")
-        val queryPacket = buildQueryPacket(dnsPayload = dnsPayload)
-        val nxdomain = DnsResponseBuilder.buildNxDomain(dnsPayload)!!
-        val wrapped = wrapDnsResponseInUdp(queryPacket, nxdomain)!!
+    fun `protocol field is UDP`() {
+        val dns = buildMinimalDnsQuery("example.com")
+        val nxdomain = DnsResponseBuilder.buildNxDomain(dns)!!
+        val wrapped = UdpPacketWrapper.wrap(buildQueryPacket(dnsPayload = dns), nxdomain)!!
 
-        assertEquals(0x11, wrapped[9].toInt() and 0xFF)  // UDP = 17
+        assertEquals(0x11, wrapped[9].toInt() and 0xFF)
     }
 
     @Test
     fun `src and dst IP addresses are swapped`() {
         val srcIp = byteArrayOf(10, 99, 0, 1)
         val dstIp = byteArrayOf(1, 1, 1, 3)
-        val dnsPayload = buildMinimalDnsQuery("example.com")
-        val queryPacket = buildQueryPacket(srcIp = srcIp, dstIp = dstIp, dnsPayload = dnsPayload)
-        val nxdomain = DnsResponseBuilder.buildNxDomain(dnsPayload)!!
-        val wrapped = wrapDnsResponseInUdp(queryPacket, nxdomain)!!
+        val dns = buildMinimalDnsQuery("example.com")
+        val nxdomain = DnsResponseBuilder.buildNxDomain(dns)!!
+        val wrapped = UdpPacketWrapper.wrap(
+            buildQueryPacket(srcIp = srcIp, dstIp = dstIp, dnsPayload = dns), nxdomain
+        )!!
 
-        // In the response: src = original dst (DNS server), dst = original src (client)
-        assertArrayEquals(dstIp, wrapped.copyOfRange(12, 16))
-        assertArrayEquals(srcIp, wrapped.copyOfRange(16, 20))
+        assertArrayEquals(dstIp, wrapped.copyOfRange(12, 16))  // response src = original dst
+        assertArrayEquals(srcIp, wrapped.copyOfRange(16, 20))  // response dst = original src
     }
 
     @Test
     fun `UDP src and dst ports are swapped`() {
-        val dnsPayload = buildMinimalDnsQuery("example.com")
-        val queryPacket = buildQueryPacket(srcPort = 54321, dstPort = 53, dnsPayload = dnsPayload)
-        val nxdomain = DnsResponseBuilder.buildNxDomain(dnsPayload)!!
-        val wrapped = wrapDnsResponseInUdp(queryPacket, nxdomain)!!
+        val dns = buildMinimalDnsQuery("example.com")
+        val nxdomain = DnsResponseBuilder.buildNxDomain(dns)!!
+        val wrapped = UdpPacketWrapper.wrap(
+            buildQueryPacket(srcPort = 54321, dstPort = 53, dnsPayload = dns), nxdomain
+        )!!
 
-        val udpSrcPort = ((wrapped[20].toInt() and 0xFF) shl 8) or (wrapped[21].toInt() and 0xFF)
-        val udpDstPort = ((wrapped[22].toInt() and 0xFF) shl 8) or (wrapped[23].toInt() and 0xFF)
-
-        assertEquals(53, udpSrcPort)       // response comes from port 53
-        assertEquals(54321, udpDstPort)    // response goes to original source port
+        val udpSrc = ((wrapped[20].toInt() and 0xFF) shl 8) or (wrapped[21].toInt() and 0xFF)
+        val udpDst = ((wrapped[22].toInt() and 0xFF) shl 8) or (wrapped[23].toInt() and 0xFF)
+        assertEquals(53, udpSrc)
+        assertEquals(54321, udpDst)
     }
 
     @Test
     fun `IPv4 header checksum is valid`() {
-        val dnsPayload = buildMinimalDnsQuery("example.com")
-        val queryPacket = buildQueryPacket(dnsPayload = dnsPayload)
-        val nxdomain = DnsResponseBuilder.buildNxDomain(dnsPayload)!!
-        val wrapped = wrapDnsResponseInUdp(queryPacket, nxdomain)!!
+        val dns = buildMinimalDnsQuery("example.com")
+        val nxdomain = DnsResponseBuilder.buildNxDomain(dns)!!
+        val wrapped = UdpPacketWrapper.wrap(buildQueryPacket(dnsPayload = dns), nxdomain)!!
 
-        // Re-compute checksum over the header with the checksum field included;
-        // a valid header produces a one's-complement sum of 0xFFFF (i.e. checksum = 0)
+        // Re-sum the full 20-byte header including the checksum; a valid header sums to 0xFFFF
         var sum = 0
         for (i in 0 until 20 step 2) {
             sum += ((wrapped[i].toInt() and 0xFF) shl 8) or (wrapped[i + 1].toInt() and 0xFF)
@@ -198,29 +129,53 @@ class UdpPacketWrapperTest {
     }
 
     @Test
-    fun `DNS payload is preserved in wrapped packet`() {
-        val dnsPayload = buildMinimalDnsQuery("blocked.example.com")
-        val queryPacket = buildQueryPacket(dnsPayload = dnsPayload)
-        val nxdomain = DnsResponseBuilder.buildNxDomain(dnsPayload)!!
-        val wrapped = wrapDnsResponseInUdp(queryPacket, nxdomain)!!
+    fun `DNS payload is preserved verbatim`() {
+        val dns = buildMinimalDnsQuery("blocked.example.com")
+        val nxdomain = DnsResponseBuilder.buildNxDomain(dns)!!
+        val wrapped = UdpPacketWrapper.wrap(buildQueryPacket(dnsPayload = dns), nxdomain)!!
 
         assertArrayEquals(nxdomain, wrapped.copyOfRange(28, wrapped.size))
     }
 
     @Test
-    fun `returns null for packet shorter than 28 bytes`() {
-        val result = wrapDnsResponseInUdp(ByteArray(20), ByteArray(12))
-        assertNull(result)
-    }
-
-    @Test
-    fun `udp length field is correct`() {
-        val dnsPayload = buildMinimalDnsQuery("example.com")
-        val queryPacket = buildQueryPacket(dnsPayload = dnsPayload)
-        val nxdomain = DnsResponseBuilder.buildNxDomain(dnsPayload)!!
-        val wrapped = wrapDnsResponseInUdp(queryPacket, nxdomain)!!
+    fun `UDP length field is correct`() {
+        val dns = buildMinimalDnsQuery("example.com")
+        val nxdomain = DnsResponseBuilder.buildNxDomain(dns)!!
+        val wrapped = UdpPacketWrapper.wrap(buildQueryPacket(dnsPayload = dns), nxdomain)!!
 
         val udpLen = ((wrapped[24].toInt() and 0xFF) shl 8) or (wrapped[25].toInt() and 0xFF)
         assertEquals(8 + nxdomain.size, udpLen)
+    }
+
+    @Test
+    fun `returns null when original packet shorter than 28 bytes`() {
+        assertNull(UdpPacketWrapper.wrap(ByteArray(20), ByteArray(12)))
+    }
+
+    @Test
+    fun `TTL is 64`() {
+        val dns = buildMinimalDnsQuery("example.com")
+        val nxdomain = DnsResponseBuilder.buildNxDomain(dns)!!
+        val wrapped = UdpPacketWrapper.wrap(buildQueryPacket(dnsPayload = dns), nxdomain)!!
+
+        assertEquals(64, wrapped[8].toInt() and 0xFF)
+    }
+
+    @Test
+    fun `DF flag is set`() {
+        val dns = buildMinimalDnsQuery("example.com")
+        val nxdomain = DnsResponseBuilder.buildNxDomain(dns)!!
+        val wrapped = UdpPacketWrapper.wrap(buildQueryPacket(dnsPayload = dns), nxdomain)!!
+
+        // Flags byte (offset 6): 0x40 = DF bit set, no MF, no fragment offset
+        assertEquals(0x40, wrapped[6].toInt() and 0xFF)
+    }
+
+    @Test
+    fun `ipv4HeaderChecksum returns zero for all-zero 20-byte buffer after inversion`() {
+        // A checksum over zeros: sum=0, inv=0xFFFF
+        val buf = ByteArray(20)
+        val cs = UdpPacketWrapper.ipv4HeaderChecksum(buf, 0, 20)
+        assertEquals(0xFFFF, cs)
     }
 }

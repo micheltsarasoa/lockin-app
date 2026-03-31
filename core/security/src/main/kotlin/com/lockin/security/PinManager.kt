@@ -18,7 +18,7 @@ import kotlin.time.Duration
 @Singleton
 class PinManager @Inject constructor(
     private val hasher: Argon2Hasher,
-    private val store: EncryptedPrefsStore,
+    private val store: PrefsStore,
     private val bruteForceGuard: BruteForceGuard,
 ) {
     companion object {

@@ -14,6 +14,7 @@ import com.lockin.filter.FilterResult
 import com.lockin.vpn.packet.DnsResponseBuilder
 import com.lockin.vpn.packet.PacketParser
 import com.lockin.vpn.packet.ParsedPacket
+import com.lockin.vpn.packet.UdpPacketWrapper
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -197,86 +198,8 @@ class LockInVpnService : VpnService() {
         return if (dnsStart < rawPacket.size) rawPacket.copyOfRange(dnsStart, rawPacket.size) else null
     }
 
-    /**
-     * Wraps a DNS response payload in a UDP/IPv4 packet addressed back to the query sender.
-     *
-     * The original query packet provides all the addressing information:
-     *   - Source IP/port become the destination (we reply to whoever sent the query)
-     *   - Destination IP/port become the source (we reply from the DNS server address)
-     *
-     * IPv4 header (20 bytes, no options) + UDP header (8 bytes) + DNS payload.
-     * The IPv4 checksum is computed over the header only (RFC 791).
-     * The UDP checksum is set to 0x0000 (optional for IPv4 per RFC 768).
-     */
-    private fun wrapDnsResponseInUdp(originalPacket: ByteArray, dnsResponse: ByteArray): ByteArray? {
-        if (originalPacket.size < 28) return null  // need at minimum IP(20) + UDP(8) headers
-
-        val ihl = (originalPacket[0].toInt() and 0x0F) * 4
-        if (originalPacket.size < ihl + 8) return null
-
-        // Extract original src/dst addresses and ports
-        val srcIp  = originalPacket.copyOfRange(12, 16)   // original query source IP
-        val dstIp  = originalPacket.copyOfRange(16, 20)   // original query dest IP (DNS server)
-        val srcPort = originalPacket.copyOfRange(ihl, ihl + 2)     // original UDP source port
-        val dstPort = originalPacket.copyOfRange(ihl + 2, ihl + 4) // original UDP dest port (53)
-
-        val totalLength = 20 + 8 + dnsResponse.size
-        val packet = ByteArray(totalLength)
-
-        // IPv4 header
-        packet[0]  = 0x45.toByte()                          // Version=4, IHL=5 (20 bytes)
-        packet[1]  = 0x00                                    // DSCP/ECN
-        packet[2]  = (totalLength ushr 8).toByte()
-        packet[3]  = (totalLength and 0xFF).toByte()
-        packet[4]  = 0x00; packet[5] = 0x00                 // Identification
-        packet[6]  = 0x40; packet[7] = 0x00                 // Flags=DF, Fragment Offset=0
-        packet[8]  = 0x40                                    // TTL = 64
-        packet[9]  = 0x11                                    // Protocol = UDP (17)
-        packet[10] = 0x00; packet[11] = 0x00                // Header checksum (filled below)
-        // Source IP = original destination (DNS server side)
-        dstIp.copyInto(packet, 12)
-        // Destination IP = original source (the device's DNS resolver)
-        srcIp.copyInto(packet, 16)
-
-        // Fill IPv4 header checksum
-        val checksum = ipv4HeaderChecksum(packet, 0, 20)
-        packet[10] = (checksum ushr 8).toByte()
-        packet[11] = (checksum and 0xFF).toByte()
-
-        // UDP header
-        val udpStart = 20
-        dstPort.copyInto(packet, udpStart)            // UDP src port = original dst port (53)
-        srcPort.copyInto(packet, udpStart + 2)        // UDP dst port = original src port
-        val udpLength = 8 + dnsResponse.size
-        packet[udpStart + 4] = (udpLength ushr 8).toByte()
-        packet[udpStart + 5] = (udpLength and 0xFF).toByte()
-        packet[udpStart + 6] = 0x00                   // Checksum = 0 (optional for IPv4/UDP)
-        packet[udpStart + 7] = 0x00
-
-        // DNS payload
-        dnsResponse.copyInto(packet, 28)
-
-        return packet
-    }
-
-    /**
-     * Computes the one's complement checksum for an IPv4 header (RFC 791).
-     * Sum all 16-bit words, fold carry bits, return one's complement.
-     */
-    private fun ipv4HeaderChecksum(buf: ByteArray, offset: Int, length: Int): Int {
-        var sum = 0
-        var i = offset
-        while (i < offset + length - 1) {
-            val word = ((buf[i].toInt() and 0xFF) shl 8) or (buf[i + 1].toInt() and 0xFF)
-            sum += word
-            i += 2
-        }
-        // Fold 32-bit sum into 16 bits
-        while (sum ushr 16 != 0) {
-            sum = (sum and 0xFFFF) + (sum ushr 16)
-        }
-        return sum.inv() and 0xFFFF
-    }
+    private fun wrapDnsResponseInUdp(originalPacket: ByteArray, dnsResponse: ByteArray): ByteArray? =
+        UdpPacketWrapper.wrap(originalPacket, dnsResponse)
 
     override fun onRevoke() {
         Log.w(TAG, "VPN revoked — this should not happen with Device Owner always-on")

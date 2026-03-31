@@ -20,7 +20,7 @@ import kotlin.time.Duration.Companion.milliseconds
  */
 @Singleton
 class BruteForceGuard @Inject constructor(
-    private val store: EncryptedPrefsStore
+    private val store: PrefsStore
 ) {
     companion object {
         private const val KEY_FAIL_COUNT = "brute_force_fail_count"

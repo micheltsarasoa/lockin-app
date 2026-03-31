@@ -17,7 +17,7 @@ import javax.inject.Singleton
 @Singleton
 class EncryptedPrefsStore @Inject constructor(
     @ApplicationContext private val context: Context
-) {
+) : PrefsStore {
     companion object {
         private const val FILE_NAME = "lockin_secure_prefs"
     }
