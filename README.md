@@ -13,12 +13,13 @@ A bypass-resistant parental control app for Android that uses two layers of defe
 
 ### 1. Prérequis
 
-| Outil | Version minimale |
-|-------|-----------------|
-| Android Studio | Hedgehog 2023.1.1+ (ou plus récent) |
-| JDK | 17 (inclus dans Android Studio) |
-| Android SDK | API 34 |
-| Git | any |
+| Outil | Version minimale | Notes |
+|-------|-----------------|-------|
+| Android Studio | Hedgehog 2023.1.1+ | Recommandé — build, debug, déploiement intégrés |
+| **ou** VS Code | any | Possible pour l'édition ; build en ligne de commande uniquement |
+| JDK | 17 | Inclus dans Android Studio ; à installer manuellement pour VS Code |
+| Android SDK | API 34 | Inclus dans Android Studio ; SDK Manager sinon |
+| Git | any | |
 
 > **Windows** : le SDK Android est généralement installé ici :
 > `C:\Users\<votre-nom>\AppData\Local\Android\Sdk`
@@ -57,12 +58,44 @@ sdk.dir=/Users/<votre-nom>/Library/Android/sdk
 
 ---
 
-### 4. Ouvrir dans Android Studio
+### 4. Ouvrir le projet dans votre éditeur
+
+#### Option A — Android Studio (recommandé)
 
 1. Lancez Android Studio
 2. **File → Open** → sélectionnez le dossier `lockin-app`
 3. Attendez la fin du sync Gradle (barre de progression en bas)
 4. Si Android Studio signale un JDK manquant : **File → Project Structure → SDK Location → JDK Location** → choisissez le JDK 17 embarqué (`<Android Studio>/jbr`)
+
+#### Option B — VS Code
+
+VS Code ne dispose pas d'un support Gradle/Android natif. Il peut servir pour éditer le code Kotlin, mais **le build et le déploiement se font obligatoirement en ligne de commande**.
+
+1. Installez les extensions recommandées :
+   - [Kotlin](https://marketplace.visualstudio.com/items?itemName=fwcd.kotlin) (`fwcd.kotlin`) — coloration syntaxique et autocomplétion basique
+   - [Extension Pack for Java](https://marketplace.visualstudio.com/items?itemName=vscjava.vscode-java-pack) (`vscjava.vscode-java-pack`) — support JDK
+   - [Gradle for Java](https://marketplace.visualstudio.com/items?itemName=vscjava.vscode-gradle) (`vscjava.vscode-gradle`) — exécution des tâches Gradle depuis le panneau latéral
+
+2. Assurez-vous que `JAVA_HOME` pointe sur un JDK 17 :
+   ```bash
+   # Windows (PowerShell)
+   $env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-17..."
+   java -version   # doit afficher 17
+
+   # macOS / Linux
+   export JAVA_HOME=$(/usr/libexec/java_home -v 17)
+   java -version
+   ```
+
+3. Ouvrez le dossier `lockin-app` dans VS Code (`File → Open Folder`)
+
+4. Créez `local.properties` manuellement (voir étape 3 ci-dessus)
+
+5. Utilisez le terminal intégré (`Ctrl+\`` `) pour toutes les commandes Gradle
+
+> **Limitation VS Code :** l'autocomplétion Kotlin reste partielle sans le Language Server
+> complet d'Android Studio. Pour une expérience optimale (refactoring, navigation,
+> débogage sur device), Android Studio reste indispensable.
 
 ---
 
@@ -70,7 +103,7 @@ sdk.dir=/Users/<votre-nom>/Library/Android/sdk
 
 **Via Android Studio :** `Build → Make Project` (`Ctrl+F9` / `⌘F9`)
 
-**Via ligne de commande :**
+**Via ligne de commande (Android Studio ou VS Code) :**
 ```bash
 # Windows
 gradlew.bat assembleDebug
@@ -197,3 +230,5 @@ lockin-app/
 | `dpm set-device-owner` échoue | Supprimez tous les comptes Google de l'appareil d'abord |
 | `INSTALL_FAILED_USER_RESTRICTED` | Activez "Sources inconnues" dans les paramètres de l'appareil |
 | Build échoue sur `ksp` | Assurez-vous d'utiliser JDK 17 (pas 11 ni 21) |
+| VS Code : `JAVA_HOME` non trouvé | Définissez `JAVA_HOME` vers un JDK 17 (voir étape 4B) |
+| VS Code : tâches Gradle invisibles | Installez l'extension `vscjava.vscode-gradle` et rechargez la fenêtre |
