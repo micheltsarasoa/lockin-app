@@ -232,3 +232,5 @@ lockin-app/
 | Build échoue sur `ksp` | Assurez-vous d'utiliser JDK 17 (pas 11 ni 21) |
 | VS Code : `JAVA_HOME` non trouvé | Définissez `JAVA_HOME` vers un JDK 17 (voir étape 4B) |
 | VS Code : tâches Gradle invisibles | Installez l'extension `vscjava.vscode-gradle` et rechargez la fenêtre |
+| `ClassNotFoundException: GradleWrapperMain` | Le fichier `gradle/wrapper/gradle-wrapper.jar` est manquant. Exécutez `gradle wrapper --gradle-version 8.7` (si Gradle est installé), ou téléchargez-le manuellement : `mkdir -p gradle/wrapper && curl -L "https://github.com/gradle/gradle/raw/v8.7.0/gradle/wrapper/gradle-wrapper.jar" -o gradle/wrapper/gradle-wrapper.jar` |
+| `sed: character class syntax is [[:space:]]` + `GradleWrapperMain` | Même cause que ci-dessus — `gradle-wrapper.jar` absent. Voir solution précédente. |
